@@ -93,10 +93,14 @@ class GatewayService(object):
         # raise``OrderNotFound``
         order = self.orders_rpc.get_order(order_id)
 
-        # Retrieve all products from the products service
-        product_map = {prod['id']: prod for prod in self.products_rpc.list()}
+        # Retrieve product IDs specified in order details
+        product_id_list = [item['product_id'] for item in order['order_details']]
 
-        # get the configured image root
+        # Retrieve selected products from the products service
+        products_list = self.products_rpc.products_by_ids(product_id_list)
+        product_map = {prod['id']: prod for prod in products_list}
+
+        # Get the configured image root
         image_root = config['PRODUCT_IMAGE_ROOT']
 
         # Enhance order details with product and image details.
@@ -156,8 +160,13 @@ class GatewayService(object):
         return Response(json.dumps({'id': id_}), mimetype='application/json')
 
     def _create_order(self, order_data):
-        # check order product ids are valid
-        valid_product_ids = {prod['id'] for prod in self.products_rpc.list()}
+        # Retrieve products specified in order details
+        product_ids = [prod['product_id'] for prod in order_data['order_details']]
+        # Retrieve selected products from the product service
+        products_list = self.products_rpc.products_by_ids(product_ids)
+
+        # Check order product IDs are valid
+        valid_product_ids = {prod['id'] for prod in products_list}
         for item in order_data['order_details']:
             if item['product_id'] not in valid_product_ids:
                 raise ProductNotFound(
